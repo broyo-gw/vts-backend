@@ -20,7 +20,7 @@ router.post('/',
   validateRequest,
   ctrl.createTrip
 );
-router.patch('/:id/start', authenticate, authorize('admin'), ctrl.startTrip);
-router.patch('/:id/finish', authenticate, authorize('admin'), ctrl.finishTrip);
+router.patch('/:id/start', authenticate, ctrl.startTrip);
+router.patch('/:id/finish', authenticate, ctrl.finishTrip);
 
 module.exports = router;

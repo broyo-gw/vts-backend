@@ -20,6 +20,7 @@ const tripRoutes = require('./routes/trip');
 const armadaRoutes = require('./routes/armada');
 const trackingRoutes  = require('./routes/tracking');
 const resourceRoutes  = require('./routes/resources');
+const adminRoutes     = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +51,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/armada', armadaRoutes);
 app.use('/api/tracking',  trackingRoutes);  // publik
 app.use('/api/resources', resourceRoutes); // admin only
+app.use('/api/admin', adminRoutes);        // admin only
 
 // Health check
 app.get('/health', (req, res) => {
