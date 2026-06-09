@@ -5,7 +5,7 @@ const mqtt = require('mqtt');
 const { query, withTransaction } = require('../config/database');
 
 // Threshold: paket dinyatakan "hilang" jika tidak terbaca dalam N siklus berturut-turut
-const MISSING_THRESHOLD_CYCLES = 3;
+const MISSING_THRESHOLD_CYCLES = 1;
 
 let ioInstance = null; // Socket.io instance
 let isProcessing = false; // lock agar tidak ada dua siklus berjalan bersamaan
@@ -190,7 +190,7 @@ async function processTelemetry(payload) {
               [
                 trip_id,
                 pkg.package_id,
-                `Paket ${pkg.rfid_tag_epc} tidak terdeteksi selama ${MISSING_THRESHOLD_CYCLES} siklus berturut-turut. Lokasi terakhir: ${gps.lat}, ${gps.lon}`,
+                `Paket ${pkg.rfid_tag_epc} tidak terdeteksi pada siklus terakhir. Lokasi terakhir: ${gps.lat}, ${gps.lon}`,
               ]
             );
 
