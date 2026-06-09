@@ -264,7 +264,8 @@ async function getTripHistory(req, res, next) {
          WHERE package_id = a.package_id
            AND trip_id    = a.trip_id
            AND is_detected = false
-         ORDER BY timestamp ASC
+           AND timestamp <= a.timestamp
+         ORDER BY timestamp DESC
          LIMIT 1
        ) re ON true
        WHERE a.trip_id = $1

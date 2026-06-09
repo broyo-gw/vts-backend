@@ -202,6 +202,7 @@ async function processTelemetry(payload) {
 
             newAlerts.push({
               ...alertRes.rows[0],
+              kode_paket:  pkg.kode_paket,
               rfid_tag_epc: pkg.rfid_tag_epc,
               lokasi: { lat: gps.lat, lon: gps.lon },
             });
@@ -253,9 +254,9 @@ async function processTelemetry(payload) {
       ioInstance.to(`pkg_${pkg.kode_paket}`).emit('telemetry_update', telemetryPayload);
     }
 
-    // Push alert ke admin room
+    // Push alert ke admin room dan trip room (agar driver juga menerima)
     for (const alert of newAlerts) {
-      ioInstance.to('admin_room').emit('paket_hilang', {
+      ioInstance.to('admin_room').to(`trip_${trip_id}`).emit('paket_hilang', {
         trip_id,
         kode_truk,
         alert,
