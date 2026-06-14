@@ -44,9 +44,29 @@ async function getManifestById(req, res, next) {
       [id]
     );
 
+    // Armada terkait — trip yang ditugaskan ke manifest ini (status apa pun:
+    // persiapan/berjalan/selesai). Diambil yang terbaru bila ada lebih dari satu.
+    const armadaRes = await query(
+      `SELECT t.id AS trip_id, t.status_trip, t.rute_asal, t.rute_tujuan,
+              tr.kode_truk, tr.nomor_polisi, tr.jenis_kendaraan,
+              u.nama AS nama_driver
+       FROM trip t
+       JOIN truck tr ON tr.id = t.truck_id
+       JOIN driver d ON d.id = t.driver_id
+       JOIN "user" u ON u.id = d.user_id
+       WHERE t.manifest_id = $1
+       ORDER BY t.created_at DESC
+       LIMIT 1`,
+      [id]
+    );
+
     res.json({
       success: true,
-      data: { ...manifestRes.rows[0], packages: packagesRes.rows },
+      data: {
+        ...manifestRes.rows[0],
+        packages: packagesRes.rows,
+        armada: armadaRes.rows[0] || null,
+      },
     });
   } catch (err) {
     next(err);

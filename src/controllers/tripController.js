@@ -108,13 +108,23 @@ async function createTrip(req, res, next) {
   try {
     const { truck_id, driver_id, manifest_id, rute_asal, rute_tujuan } = req.body;
 
-    // Validasi: truck dan driver tidak sedang dalam trip aktif
+    // Validasi: truck dan driver tidak sedang dalam trip aktif.
+    // 'persiapan' juga dihitung aktif — sudah ditugaskan walau belum berangkat,
+    // sehingga tidak bisa di-assign ke trip lain hingga trip itu selesai/dibatalkan.
     const activeTruck = await query(
-      `SELECT id FROM trip WHERE truck_id = $1 AND status_trip = 'berjalan'`,
+      `SELECT id FROM trip WHERE truck_id = $1 AND status_trip IN ('persiapan', 'berjalan')`,
       [truck_id]
     );
     if (activeTruck.rows.length > 0) {
       return res.status(409).json({ success: false, message: 'Kendaraan sedang dalam perjalanan aktif' });
+    }
+
+    const activeDriver = await query(
+      `SELECT id FROM trip WHERE driver_id = $1 AND status_trip IN ('persiapan', 'berjalan')`,
+      [driver_id]
+    );
+    if (activeDriver.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'Driver sedang dalam perjalanan aktif' });
     }
 
     const result = await query(
