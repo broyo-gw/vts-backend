@@ -17,7 +17,7 @@ const WS_URL       = 'https://vts-backend-testing.up.railway.app';
 const BROKER_URL   = process.env.MQTT_BROKER_URL;       // dari .env
 const TRUCK_ID     = 'TRUCK-001';
 const TOPIC        = `vts/telemetry/${TRUCK_ID}`;
-const KODE_PAKET   = 'PKT-01';      // paket yang di-track dashboard (harus ada di manifest aktif)
+const TRIP_ID      = 14;            // ← samakan dengan output setup-latensi.js
 const JUMLAH_UJI   = 5;             // sesuai tabel: 5 pengukuran
 const JEDA_MS      = 2000;          // jeda antar pengukuran
 
@@ -40,7 +40,7 @@ const socket = io(WS_URL, { transports: ['websocket'], reconnection: false });
 
 socket.on('connect', () => {
   console.log('[WS] Dashboard terhubung:', socket.id);
-  socket.emit('track_package', { kode_paket: KODE_PAKET });
+  socket.emit('join_trip', { trip_id: TRIP_ID });
 });
 
 socket.on('telemetry_update', (payload) => {
