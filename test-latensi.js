@@ -14,7 +14,9 @@ const { io } = require('socket.io-client');
 
 // ─── Konfigurasi ──────────────────────────────────────────────
 const WS_URL       = 'https://vts-backend-testing.up.railway.app';
-const BROKER_URL   = process.env.MQTT_BROKER_URL;       // dari .env
+// PENTING: harus broker yang SAMA dengan yang dipakai backend di Railway.
+// Dari log Railway: mqtt://broker.hivemq.com:1883 (broker publik, tanpa auth)
+const BROKER_URL   = 'mqtt://broker.hivemq.com:1883';
 const TRUCK_ID     = 'TRUCK-001';
 const TOPIC        = `vts/telemetry/${TRUCK_ID}`;
 const TRIP_ID      = 14;            // ← samakan dengan output setup-latensi.js
@@ -64,9 +66,8 @@ socket.on('connect_error', (e) => {
 });
 
 // ─── 2. Koneksi MQTT (peran: ESP32) ──────────────────────────
+// Broker publik broker.hivemq.com tidak butuh username/password
 const mqttClient = mqtt.connect(BROKER_URL, {
-  username: process.env.MQTT_USERNAME,
-  password: process.env.MQTT_PASSWORD,
   clientId: `vts-latensi-test-${Date.now()}`,
 });
 
