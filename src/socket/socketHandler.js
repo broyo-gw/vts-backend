@@ -1,5 +1,6 @@
 // src/socket/socketHandler.js
 const jwt = require('jsonwebtoken');
+const { query } = require('../config/database');
 
 function initSocket(io) {
   // Middleware autentikasi WebSocket
@@ -33,20 +34,49 @@ function initSocket(io) {
 
     // Join room monitoring trip tertentu
     // Client kirim: socket.emit('join_trip', { trip_id: 42 })
-    socket.on('join_trip', ({ trip_id }) => {
-      if (!trip_id) return;
-      socket.join(`trip_${trip_id}`);
-      console.log(`[Socket] ${socket.id} join trip_${trip_id}`);
+    // Hanya admin & driver (pemilik trip) — pelanggan anonim tidak boleh
+    // menerima telemetry GPS live truk; mereka pakai track_package.
+    socket.on('join_trip', async (payload) => {
+      const trip_id = Number(payload?.trip_id);
+      if (!Number.isInteger(trip_id)) return;
+
+      if (role === 'admin') {
+        socket.join(`trip_${trip_id}`);
+        console.log(`[Socket] ${socket.id} join trip_${trip_id} (admin)`);
+        return;
+      }
+
+      if (role === 'driver') {
+        try {
+          const res = await query(
+            `SELECT 1 FROM trip t
+             JOIN driver d ON d.id = t.driver_id
+             WHERE t.id = $1 AND d.user_id = $2`,
+            [trip_id, socket.user.id]
+          );
+          if (res.rows.length > 0) {
+            socket.join(`trip_${trip_id}`);
+            console.log(`[Socket] ${socket.id} join trip_${trip_id} (driver)`);
+          }
+        } catch (err) {
+          console.error('[Socket] Gagal verifikasi kepemilikan trip:', err.message);
+        }
+      }
+      // role pelanggan: diabaikan
     });
 
-    socket.on('leave_trip', ({ trip_id }) => {
+    socket.on('leave_trip', (payload) => {
+      const trip_id = Number(payload?.trip_id);
+      if (!Number.isInteger(trip_id)) return;
       socket.leave(`trip_${trip_id}`);
     });
 
     // Pelanggan tracking - join room paket spesifik
     // Client kirim: socket.emit('track_package', { kode_paket: 'PKG-001' })
-    socket.on('track_package', ({ kode_paket }) => {
-      if (!kode_paket) return;
+    socket.on('track_package', (payload) => {
+      const kode_paket = payload?.kode_paket;
+      // Validasi format kode paket agar tidak bisa membuat room sembarangan
+      if (typeof kode_paket !== 'string' || !/^[\w-]{1,50}$/.test(kode_paket)) return;
       socket.join(`pkg_${kode_paket}`);
       console.log(`[Socket] ${socket.id} tracking paket: ${kode_paket}`);
     });

@@ -3,6 +3,30 @@ const { query, withTransaction } = require('../config/database');
 let ioInstance = null;
 function setIo(io) { ioInstance = io; }
 
+// Cek apakah trip dimiliki oleh driver (user) yang sedang login.
+// Dipakai untuk mencegah driver mengakses/mengubah trip milik driver lain (IDOR).
+async function driverOwnsTrip(userId, tripId) {
+  const res = await query(
+    `SELECT 1 FROM trip t
+     JOIN driver d ON d.id = t.driver_id
+     WHERE t.id = $1 AND d.user_id = $2`,
+    [tripId, userId]
+  );
+  return res.rows.length > 0;
+}
+
+// Middleware-style guard: role driver hanya boleh akses trip miliknya.
+// Return true jika akses diizinkan (response 403 sudah dikirim jika tidak).
+async function assertTripAccess(req, res, tripId) {
+  if (req.user.role !== 'driver') return true;
+  const owns = await driverOwnsTrip(req.user.id, tripId);
+  if (!owns) {
+    res.status(403).json({ success: false, message: 'Akses ditolak. Trip ini bukan milik Anda.' });
+    return false;
+  }
+  return true;
+}
+
 // GET /api/trips - semua trip (admin), atau trip milik driver yang login
 async function getAllTrips(req, res, next) {
   try {
@@ -46,6 +70,7 @@ async function getAllTrips(req, res, next) {
 async function getTripById(req, res, next) {
   try {
     const { id } = req.params;
+    if (!(await assertTripAccess(req, res, id))) return;
 
     const tripRes = await query(
       `SELECT t.*, tr.kode_truk, tr.nomor_polisi, tr.jenis_kendaraan,
@@ -127,6 +152,15 @@ async function createTrip(req, res, next) {
       return res.status(409).json({ success: false, message: 'Driver sedang dalam perjalanan aktif' });
     }
 
+    // Manifest tidak boleh sedang dipakai trip aktif lain
+    const activeManifest = await query(
+      `SELECT id FROM trip WHERE manifest_id = $1 AND status_trip IN ('persiapan', 'berjalan')`,
+      [manifest_id]
+    );
+    if (activeManifest.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'Manifest sudah ditugaskan ke trip aktif lain' });
+    }
+
     const result = await query(
       `INSERT INTO trip (truck_id, driver_id, manifest_id, rute_asal, rute_tujuan, status_trip)
        VALUES ($1, $2, $3, $4, $5, 'persiapan') RETURNING *`,
@@ -146,6 +180,7 @@ async function createTrip(req, res, next) {
 async function startTrip(req, res, next) {
   try {
     const { id } = req.params;
+    if (!(await assertTripAccess(req, res, id))) return;
     const result = await query(
       `UPDATE trip SET status_trip = 'berjalan', waktu_berangkat = NOW()
        WHERE id = $1 AND status_trip = 'persiapan' RETURNING *`,
@@ -182,6 +217,7 @@ async function startTrip(req, res, next) {
 async function finishTrip(req, res, next) {
   try {
     const { id } = req.params;
+    if (!(await assertTripAccess(req, res, id))) return;
     const result = await query(
       `UPDATE trip SET status_trip = 'selesai', waktu_selesai = NOW()
        WHERE id = $1 AND status_trip = 'berjalan' RETURNING *`,
@@ -252,6 +288,7 @@ async function finishTrip(req, res, next) {
 async function getTripHistory(req, res, next) {
   try {
     const { id } = req.params;
+    if (!(await assertTripAccess(req, res, id))) return;
 
     const gpsHistory = await query(
       `SELECT latitude, longitude, kecepatan_kmh, timestamp
@@ -326,6 +363,7 @@ async function getTripHistory(req, res, next) {
 async function getPackageTrace(req, res, next) {
   try {
     const { id: trip_id, pkg_id } = req.params;
+    if (!(await assertTripAccess(req, res, trip_id))) return;
 
     const pkgRes = await query(
       `SELECT id, kode_paket, rfid_tag_epc, nama_pengirim, nama_penerima, alamat_tujuan, berat_kg, status_paket
@@ -356,4 +394,4 @@ async function getPackageTrace(req, res, next) {
   }
 }
 
-module.exports = { getAllTrips, getTripById, createTrip, startTrip, finishTrip, getTripHistory, getPackageTrace, setIo };
+module.exports = { getAllTrips, getTripById, createTrip, startTrip, finishTrip, getTripHistory, getPackageTrace, setIo, assertTripAccess };

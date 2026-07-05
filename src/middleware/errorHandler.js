@@ -28,10 +28,14 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ success: false, message: 'Referensi data tidak ditemukan' });
   }
 
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Terjadi kesalahan pada server',
-  });
+  const status = err.status || 500;
+  // Di production jangan bocorkan pesan error internal (nama tabel, query, dsb)
+  const message =
+    status >= 500 && process.env.NODE_ENV === 'production'
+      ? 'Terjadi kesalahan pada server'
+      : err.message || 'Terjadi kesalahan pada server';
+
+  res.status(status).json({ success: false, message });
 }
 
 module.exports = { validateRequest, errorHandler };

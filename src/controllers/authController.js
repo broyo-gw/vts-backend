@@ -25,7 +25,8 @@ async function login(req, res, next) {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, nama: user.nama },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      // Fallback 24h agar token tetap punya masa berlaku walau env tidak diset
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
     res.json({

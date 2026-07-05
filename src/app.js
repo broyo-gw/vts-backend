@@ -1,11 +1,18 @@
 require('dotenv').config();
 
+// Fail fast: tanpa JWT_SECRET semua verifikasi token tidak aman/error
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+  console.error('[FATAL] JWT_SECRET belum diset atau terlalu pendek (min 16 karakter). Periksa file .env');
+  process.exit(1);
+}
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { initSocket } = require('./socket/socketHandler');
@@ -68,11 +75,24 @@ const io = new Server(server, {
 // ────────────────────────────────
 //  Middleware global
 // ────────────────────────────────
+// Di belakang reverse proxy (Railway/devtunnels) — perlu agar rate limiter
+// membaca IP asli klien dari X-Forwarded-For, bukan IP proxy
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limit global: 300 request / 15 menit per IP untuk semua endpoint API
+app.use('/api', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Terlalu banyak request. Coba lagi beberapa saat.' },
+}));
 
 // ────────────────────────────────
 //  Routes

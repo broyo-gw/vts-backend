@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { assertTripAccess } = require('./tripController');
 
 // GET /api/armada - semua truk aktif + posisi terakhir + status muatan
 async function getArmadaAktif(req, res, next) {
@@ -46,6 +47,8 @@ async function getArmadaAktif(req, res, next) {
 async function getDetailMuatan(req, res, next) {
   try {
     const { trip_id } = req.params;
+    // Driver hanya boleh melihat detail muatan trip miliknya sendiri
+    if (!(await assertTripAccess(req, res, trip_id))) return;
 
     // Info trip
     const tripRes = await query(

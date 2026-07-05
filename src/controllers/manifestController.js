@@ -144,6 +144,15 @@ async function updateManifestStatus(req, res, next) {
     const { id } = req.params;
     const { status } = req.body;
 
+    // Harus sinkron dengan CHECK constraint tabel manifest di migrations
+    const ALLOWED_STATUS = ['draft', 'aktif', 'selesai'];
+    if (!ALLOWED_STATUS.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Status tidak valid. Pilihan: ${ALLOWED_STATUS.join(', ')}`,
+      });
+    }
+
     const result = await query(
       'UPDATE manifest SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
